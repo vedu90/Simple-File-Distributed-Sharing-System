@@ -18,7 +18,7 @@ This is the main file where the process execution is started.
 #include "Client.h"
 #include "Server.h"
 
-
+//Convert integer to string
 const char* HelperFunctions::IntToString(int num)
 {
     std::stringstream ss;
@@ -27,6 +27,7 @@ const char* HelperFunctions::IntToString(int num)
     return str.c_str();
 }
 
+//Convert port number to string
 void HelperFunctions::PortNumToString(int num,char *port)
 {
     int temp = num;
@@ -49,6 +50,7 @@ void HelperFunctions::PortNumToString(int num,char *port)
     port[len] = '\0';
 }
 
+//Check if the given port number is valid or not
 bool HelperFunctions::CheckStringToIntValidity(char *portNumber)
 {
     for (int i = 0; i < strlen (portNumber); i++)
@@ -61,6 +63,7 @@ bool HelperFunctions::CheckStringToIntValidity(char *portNumber)
     return true;
 }
 
+//Converts to lower case
 void HelperFunctions::ToLowerCase(char *myStr)
 {
     for (int i = 0; i < strlen(myStr); i++)
@@ -72,6 +75,7 @@ void HelperFunctions::ToLowerCase(char *myStr)
     }
 }
 
+//Tokenizes the input commands
 void HelperFunctions::TokenizeCommand(char *myStr,char *tokens[3])
 {
     char *p = strtok(myStr, " ");
@@ -84,12 +88,15 @@ void HelperFunctions::TokenizeCommand(char *myStr,char *tokens[3])
     }
 }
 
+//To launch the connection for server or client
 void SocketNetwork::LaunchConnection(SocketNetwork* obj)
 {
     GetHostIPAndHostName();
     obj->Manager();
 }
 
+//Upon entering the command to be executed, this API is called where depending on the Command Type and 
+//process type i.e Client or Server, its corresponding API is called
 void SocketNetwork::ExecuteCommand(char *commandType[3],SocketNetwork* obj)
 {
     if(strcmp(commandType[0],"help") == 0)
@@ -190,6 +197,9 @@ void SocketNetwork::ExecuteCommand(char *commandType[3],SocketNetwork* obj)
     }
 }
 
+
+//Help command is executed below where all the supported commands with their description is shown on the UI
+//This API is common for Server and Client
 void SocketNetwork::ExecuteHelp()
 {
     cout<<"\n***Available User Commands are shown below with desciption***\n\n";
@@ -226,13 +236,18 @@ command.\n\n";
 
 }
 
+
+//Creator command is executed below.
+//This API is common for Server and Client
 void SocketNetwork::ExecuteCreator()
 {
-    cout<<"\nStudent's Full Name : Chaitanya Vedurupaka\n";
-    cout<<"UBIT Name : cvedurup\n";
-    cout<<"UB email address : cvedurup@buffalo.edu\n";
+    cout<<"\nStudent's Full Name : XXXXXX\n";
+    cout<<" University ID : XXXXXXX\n";
+    cout<<"email address : XXXXXXX\n";
 }
 
+//Display command is executed below where hostname, IP address and Port Number are displayed
+//This API is common for Server and Client
 void SocketNetwork::ExecuteDisplay(SocketNetwork* obj)
 {
     cout<<"Host Name : "<<hostName<<"\n";
@@ -240,7 +255,7 @@ void SocketNetwork::ExecuteDisplay(SocketNetwork* obj)
     cout<<"Port Number : "<<obj->GetPortNumber()<<"\n";
 }
 
-
+// API to get the Hostname and Host IP
 void SocketNetwork::GetHostIPAndHostName()
 {
 
@@ -291,6 +306,7 @@ int main(int argc , char *argv[])
             if(portNum < 65536)
             {
                 cout<<"Launch Server Instance with port number : "<<portNum;
+                //Launching Server
                 myServer->SetPort(portNum);
                 DISPLAY_MENU;
                 pObject->LaunchConnection(pObject);
@@ -319,6 +335,7 @@ int main(int argc , char *argv[])
             if(portNum < 65536)
             {
                 cout<<"Launch Client Instance with port number : "<<portNum;
+                //Launching Client
                 myClient->SetPort(portNum);
                 DISPLAY_MENU;
                 pObject->LaunchConnection(pObject);
