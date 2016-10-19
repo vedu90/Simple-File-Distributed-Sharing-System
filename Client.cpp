@@ -1,3 +1,4 @@
+/*This file is for Client and processing all its commands*/
 #include <fstream>
 #include "Client.h"
 #include <stdio.h>
@@ -13,19 +14,19 @@
 #include <sys/statvfs.h>
 #include "Defines.h"
 
-
+//Set Port number
 void Client::SetPort(int portNum)
 {
     portNumber = portNum;
 }
 
+//Get port number
 int Client::GetPortNumber()
 {
     return portNumber;
 }
-#if 1
 
-
+//Get IP from Socket structure
 void *get_in_addr(struct sockaddr *sa)
 {
     if (sa->sa_family == AF_INET)
@@ -34,6 +35,8 @@ void *get_in_addr(struct sockaddr *sa)
     }
 }
 
+//To check the amount of disk space left while some other peer is uploading into our disk
+// We don't want other peers to fill up our disk
 bool Client::DiskSpaceLeft(long long int fileSize)
 {
     struct statvfs buf;
@@ -44,20 +47,21 @@ bool Client::DiskSpaceLeft(long long int fileSize)
         cout<<"Get disk space left error\n";
         return false;
     }
-  //  cout<<"checking\n";
- //   cout<<buf.f_bsize<<" "<<buf.f_bfree<<"\n";
+
     long long int sz = buf.f_bsize*buf.f_bfree;
- //   cout<<"sz : "<<sz<<"\n";
+ 
     if(sz < fileSize)
     {
         cout<<"No space left to accomodate the receiving file\n";
         return false;
     }
-  //  cout<<"Enough space left\n";
     return true;
 }
 
-
+//This API is used when file download is done.
+// Every time a file download is started, we maintain its parameters like the amount
+//of bytes read and the number of bytes still left to read.
+// It also tracks multiple downloads using the file descriptor
 void Client::AddFileReadDetails(int fd,long long int bytesRead,long long int bytesLeft,char *fileName)
 {
     FileReadDetails *tempStruct = firstReadFile;
@@ -92,11 +96,11 @@ void Client::AddFileReadDetails(int fd,long long int bytesRead,long long int byt
 			dout<<"File Details Not added, add now\n";
 
 			FileReadDetails *addDetails = new FileReadDetails;
-            addDetails->fd = fd;
-            addDetails->bytesRead = bytesRead;
-            addDetails->bytesLeft = bytesLeft;
-            strcpy(addDetails->fileName,fileName);
-            addDetails->next = NULL;
+		        addDetails->fd = fd;
+		        addDetails->bytesRead = bytesRead;
+		        addDetails->bytesLeft = bytesLeft;
+		        strcpy(addDetails->fileName,fileName);
+		        addDetails->next = NULL;
 			prevDetails->next = addDetails;
 		}
 	}
@@ -104,21 +108,18 @@ void Client::AddFileReadDetails(int fd,long long int bytesRead,long long int byt
 	{
 		if(bytesLeft != 0)
 		{
-            dout<<"BytesLeft in read "<<bytesLeft<<"\n";
+            		dout<<"BytesLeft in read "<<bytesLeft<<"\n";
 			tempStruct->bytesLeft = bytesLeft;
 			tempStruct->bytesRead = bytesRead;
 		}
 		else
 		{
-             dout<<"Debug "<<__LINE__<<"\n";
 			if(tempStruct != NULL && tempStruct != firstReadFile)
 			{
-                dout<<"Debug "<<__LINE__<<"\n";
 				prevDetails->next = tempStruct->next;
 			}
 			else if(tempStruct == firstReadFile)
 			{
-                dout<<"Debug "<<__LINE__<<"\n";
 				firstReadFile = firstReadFile->next;
 			}
 			delete tempStruct;
@@ -127,11 +128,12 @@ void Client::AddFileReadDetails(int fd,long long int bytesRead,long long int byt
 	}
 }
 
-
+//This API is used during file downloading. This is used to get the details that were saved in the previous 
+//partial download like number of bytes downloaded and number of bytes still left
 int Client::GetFileReadDetails(int fd,struct FileReadDetails *fDetails)
 {
 	FileReadDetails *tempStruct = firstReadFile;
-    dout<<"Get File Read Details\n";
+   
 	while(tempStruct != NULL && tempStruct->fd != fd)
 	{
 		tempStruct = tempStruct->next;
@@ -139,47 +141,26 @@ int Client::GetFileReadDetails(int fd,struct FileReadDetails *fDetails)
 
 	if(tempStruct == NULL)
 	{
-	//	cout<<"Error, file details not found\n";
 		return -1;
 	}
 
 	fDetails->bytesLeft = tempStruct->bytesLeft;
 	fDetails->bytesRead = tempStruct->bytesRead;
 	strcpy(fDetails->fileName,tempStruct->fileName);
-    return 0;
+    	return 0;
 }
 
 
-int Client::GetFileWriteDetails(int fd,struct FileWriteDetails *fDetails)
-{
-	FileWriteDetails *tempStruct = firstWriteFile;
-    dout<<"Get File Write Details\n";
-	while(tempStruct != NULL && tempStruct->fd != fd)
-	{
-		tempStruct = tempStruct->next;
-	}
-
-	if(tempStruct == NULL)
-	{
-	//	cout<<"Error, file details not found\n";
-		return -1;
-	}
-
-	fDetails->bytesToWrite = tempStruct->bytesToWrite;
-	fDetails->bytesWritten = tempStruct->bytesWritten;
-	strcpy(fDetails->fileName,tempStruct->fileName);
-	return 0;
-
-}
-
+//This API is used when file upload is done.
+// Every time a file upload is started, we maintain its parameters like the amount
+//of bytes written(sent) and the number of bytes still left to write(to send).
+// It also tracks multiple uploads using the file descriptor
 void Client::AddFileWriteDetails(int fd,long long int bToWrite,long long int bWritten,char *fName)
 {
 	FileWriteDetails *tempStruct = firstWriteFile;
 
 	if(firstWriteFile == NULL)
 	{
-		dout<<"No File Details Present at all\n";
-
 		FileWriteDetails *addDetails = new FileWriteDetails;
 		addDetails->fd = fd;
 		addDetails->bytesToWrite = bToWrite;
@@ -187,7 +168,6 @@ void Client::AddFileWriteDetails(int fd,long long int bToWrite,long long int bWr
 		strcpy(addDetails->fileName,fName);
 		addDetails->next = NULL;
 		firstWriteFile = addDetails;
-		dout<<"Debug dude "<<__LINE__<<"\n";
 		return;
 	}
 
@@ -205,7 +185,6 @@ void Client::AddFileWriteDetails(int fd,long long int bToWrite,long long int bWr
 		if(bToWrite != 0)
 		{
 			dout<<"File Details Not added, add now\n";
-
 			FileWriteDetails *addDetails = new FileWriteDetails;
 			addDetails->fd = fd;
 			addDetails->bytesToWrite = bToWrite;
@@ -219,21 +198,17 @@ void Client::AddFileWriteDetails(int fd,long long int bToWrite,long long int bWr
 	{
 		if(bToWrite != 0)
 		{
-            dout<<"bytes To write left "<<bToWrite<<"\n";
 			tempStruct->bytesToWrite = bToWrite;
 			tempStruct->bytesWritten = bWritten;
 		}
 		else
 		{
-            dout<<"Debug "<<__LINE__<<"\n";
 			if(tempStruct != NULL && tempStruct != firstWriteFile)
 			{
-                dout<<"Debug "<<__LINE__<<"\n";
 				prevDetails->next = tempStruct->next;
 			}
 			else if(tempStruct == firstWriteFile)
 			{
-                dout<<"Debug "<<__LINE__<<"\n";
 				firstWriteFile = firstWriteFile->next;
 			}
 			delete tempStruct;
@@ -243,16 +218,41 @@ void Client::AddFileWriteDetails(int fd,long long int bToWrite,long long int bWr
 }
 
 
+//This API is used during file uploading. This is used to get the details that were saved in the previous 
+//partial upload like number of bytes uploaded and number of bytes still left to upload
+int Client::GetFileWriteDetails(int fd,struct FileWriteDetails *fDetails)
+{
+	FileWriteDetails *tempStruct = firstWriteFile;
+   
+	while(tempStruct != NULL && tempStruct->fd != fd)
+	{
+		tempStruct = tempStruct->next;
+	}
+
+	if(tempStruct == NULL)
+	{
+		return -1;
+	}
+
+	fDetails->bytesToWrite = tempStruct->bytesToWrite;
+	fDetails->bytesWritten = tempStruct->bytesWritten;
+	strcpy(fDetails->fileName,tempStruct->fileName);
+	return 0;
+
+}
+
+
+//This API is used to check if the file upload is completed or not
+// If the file upload is completed then its file descriptor won't be availble in the 
+//list of structures containing the file write details
 bool Client::WriteComplete(int fd)
 {
-    dout<<"Write Complete\n";
 	FileWriteDetails *tempStruct = firstWriteFile;
 
 	while(tempStruct != NULL)
 	{
 		if(tempStruct->fd == fd)
 		{
-            dout<<"Write Complete False\n";
 			return false;
 		}
 		tempStruct = tempStruct->next;
@@ -261,6 +261,9 @@ bool Client::WriteComplete(int fd)
 
 }
 
+//This API is executed when GET command is inputted on client
+// The connectionID is the one obtained from LIST command
+//fName is the file we would like to download
 void Client::ExecuteGET(int connectionID, char *fName)
 {
 
@@ -307,7 +310,6 @@ void Client::ExecuteGET(int connectionID, char *fName)
      if(slashPosition != NULL)
      {
         strcpy(_fileName,fName+(slashPosition-fName+1));
-     //   cout<<"Filename reduced to "<<_fileName<<"\n";
      }
      else
      {
@@ -316,8 +318,6 @@ void Client::ExecuteGET(int connectionID, char *fName)
 
 
     strcpy(_fName->fileName,_fileName);
-
-  //  cout<<"FName in GET : "<<_fName->fileName<<"\n";
 
     memcpy((void*)(buf+sizeof(CommandDetails)),_fName->fileName,sizeof(FileNameDetails));
     int n = 0;
@@ -331,6 +331,9 @@ void Client::ExecuteGET(int connectionID, char *fName)
     delete _fName;
 }
 
+//This API is executed when PUT command is inputted on client
+// The connectionID is the one obtained from LIST command
+//fName is the command we would like to upload to other peer
 void Client::ExecutePUT(int connectionID, char *fName)
 {
     ClientList *tempList = cList;
@@ -363,16 +366,17 @@ void Client::ExecutePUT(int connectionID, char *fName)
     _ExecutePUT(fd,fName);
 }
 
-
+//This is the actual API that is to be called for uploading
+//above ExecutePUT() is like a wrapper API
 void Client::_ExecutePUT(int sockfd, char *filePath)
 {
-	FD_SET(sockfd,&write_master);
+    FD_SET(sockfd,&write_master);
 
     CommandDetails *cmdDetails = new CommandDetails;
     cmdDetails->commandType = PUT;
 
     char _buff[BUFF_LEN];
-	ifstream FileToSend(filePath, ios::in | ios::binary);
+    ifstream FileToSend(filePath, ios::in | ios::binary);
     if(!FileToSend.is_open())
     {
         cout<<"File not found/Open Error in read, abort\n";
@@ -389,7 +393,6 @@ void Client::_ExecutePUT(int sockfd, char *filePath)
      if(slashPosition != NULL)
      {
         strcpy(_fileName,filePath+(slashPosition-filePath+1));
-     //   cout<<"Filename reduced to "<<_fileName<<"\n";
      }
      else
      {
@@ -401,44 +404,37 @@ void Client::_ExecutePUT(int sockfd, char *filePath)
 	FileToSend.seekg(0,ios::beg);
 
 	cmdDetails->len = _end;
-    memcpy((void*)_buff,cmdDetails,sizeof(CommandDetails));
+    	memcpy((void*)_buff,cmdDetails,sizeof(CommandDetails));
 
-    FileNameDetails *fName = new FileNameDetails;
-    strcpy(fName->fileName,_fileName);
-    memcpy((void*)(_buff+sizeof(CommandDetails)),fName,sizeof(FileNameDetails));
+        FileNameDetails *fName = new FileNameDetails;
+        strcpy(fName->fileName,_fileName);
+        memcpy((void*)(_buff+sizeof(CommandDetails)),fName,sizeof(FileNameDetails));
 
 	long long int bytesToWrite = _end;
 	long long int bytesWritten = 0;
 
-	//cout<<"Bytes to write before send operation : "<<bytesToWrite<<"\n";
-  //  cout<<"Bytes written before send operation : "<<bytesWritten<<"\n";
 
+        FileToSend.read(_buff+COMMAND_LEN,BUFF_LEN-COMMAND_LEN);
 
-    FileToSend.read(_buff+COMMAND_LEN,BUFF_LEN-COMMAND_LEN);
-
-    long long int total = 0;
-    long long int bytesleft = MIN(BUFF_LEN,bytesToWrite+COMMAND_LEN);
-    long long int limit = bytesleft;
-    long long int n;
-    while(total < limit)
-    {
-        n = send(sockfd,_buff+total, bytesleft, 0);
-        if (n == -1)
+        long long int total = 0;
+        long long int bytesleft = MIN(BUFF_LEN,bytesToWrite+COMMAND_LEN);
+        long long int limit = bytesleft;
+        long long int n;
+        while(total < limit)
         {
-            perror("Send Error\n");
-            break;
-        }
-        total += n;
-        bytesleft -= n;
-        bytesWritten += n;
-     //   cout<<"n bytes : "<<n<<" total : "<<total<<"\n";
+            n = send(sockfd,_buff+total, bytesleft, 0);
+            if (n == -1)
+            {
+                perror("Send Error\n");
+                break;
+            }
+            total += n;
+            bytesleft -= n;
+            bytesWritten += n;
     }
 
     bytesWritten-=COMMAND_LEN;
     bytesToWrite-=(total-COMMAND_LEN);
-
-   // cout<<"Bytes to write after send operation : "<<bytesToWrite<<"\n";
-   // cout<<"Bytes written after send operation : "<<bytesWritten<<"\n";
 
     if(bytesToWrite > 0)
     {
@@ -449,10 +445,11 @@ void Client::_ExecutePUT(int sockfd, char *filePath)
         cout<<"Upload completed for the file "<<filePath<<" in one go to the host : "<<GetHostName(sockfd)<<"\n";
     }
 
-	FileToSend.close();
-	delete cmdDetails;
+    FileToSend.close();
+    delete cmdDetails;
 }
 
+//This API is executed to terminate all the peer connections and exit
 void Client::ExecuteQuit()
 {
     ClientList *tempList = cList;
@@ -472,6 +469,8 @@ void Client::ExecuteQuit()
     exit(0);
 }
 
+
+//This API is executed to terminate the peer connection with connection ID  = connectionID
 void Client::ExecuteTerminate(int connectionID)
 {
 
@@ -481,7 +480,6 @@ void Client::ExecuteTerminate(int connectionID)
     if(connectionID == 1 && cList != NULL)
     {
         cList = cList->nextList;
-        dout<<"FD : "<<cList->fd<<"\n";
         FD_CLR(tempList->fd, &read_master);
         FD_CLR(tempList->fd, &read_fds);
         close(tempList->fd);
@@ -497,15 +495,11 @@ void Client::ExecuteTerminate(int connectionID)
     else
     {
         int i = 1;
-//         cout<<"Fucking Debug "<<__LINE__<<"\n";
         while(tempList != NULL)
         {
-         //   cout<<"Fucking Debug "<<__LINE__<<" i : "<<i<<"\n";
             if(i == connectionID)
             {
                 peerConnections--;
-
-                //  cout<<"FD Clearing: "<<tempList->fd<<"\n";
                 FD_CLR(tempList->fd, &read_master);
                 FD_CLR(tempList->fd, &read_fds);
                 close(tempList->fd);
@@ -519,12 +513,12 @@ void Client::ExecuteTerminate(int connectionID)
         }
     }
 
-
-
     cout<<"Connection Id not found\n";
 
 }
 
+
+//Upon executing this command all the peer connections with this client shall be displayed
 void Client::ExecuteList()
 {
     ClientList *tempList = cList;
@@ -538,6 +532,7 @@ void Client::ExecuteList()
     }
 }
 
+//This API is used to connect with other registeted clients with a given IP and port number
 void Client::ExecuteConnect(char *destIP, int portNum)
 {
    dout<<"Client : ExecuteConnect "<<__LINE__<<"\n";
@@ -565,8 +560,6 @@ void Client::ExecuteConnect(char *destIP, int portNum)
             addr_list = (struct in_addr **)temp->h_addr_list;
             memset(destIP,0,strlen(destIP)+1);
             strcpy(destIP,inet_ntoa(*addr_list[0]));
-        //    cout<<"IP address : "<<destIP<<"\n";
-        //    cout<<"Host Name : "<<tempStr<<"\n";
         }
         else
         {
@@ -655,7 +648,6 @@ void Client::ExecuteConnect(char *destIP, int portNum)
         if(peerConnections >= MAX_CONNECTIONS)
         {
             cout<<"PeerConnection limit reached, close the listening port\n";
-        //    cout<<"FD Clearing: "<<listener<<"\n";
             FD_CLR(listener, &read_master);
             close(listener);
             listener = -1;
@@ -672,6 +664,7 @@ void Client::ExecuteConnect(char *destIP, int portNum)
     freeaddrinfo(servinfo);
 }
 
+//API to register with the server
 void Client::ExecuteRegister(char *serverIP, int portNum)
 {
    dout<<"Client : ExecuteRegister "<<__LINE__<<"\n";
@@ -786,9 +779,13 @@ void Client::ExecuteRegister(char *serverIP, int portNum)
     freeaddrinfo(servinfo);
 
 }
-#endif
 
 
+//This is the main API for client
+//The client processing is done here
+//Socket for the client, binding and listening is done here
+//Select API is used to maange multiple TCP connections and also 
+// to take input from STDIN simultaneously
 void Client::Manager()
 {
     dout<<"Debug "<<__LINE__<<"\n";
@@ -800,8 +797,6 @@ void Client::Manager()
     long long int nbytes;
     char remoteIP[INET6_ADDRSTRLEN];
     int i, j, rv;
-
- //   struct addrinfo hints;
 
     FD_ZERO(&read_master);
     FD_ZERO(&read_fds);
@@ -823,6 +818,7 @@ void Client::Manager()
     {
         read_fds = read_master;
         write_fds = write_master;
+	    //Select() to handle multiple TCP connections
         if (select(fdmax+1, &read_fds, &write_fds, NULL, NULL) == -1)
         {
             perror("select");
@@ -831,12 +827,11 @@ void Client::Manager()
 
         for(i = 0; i <= fdmax; i++)
         {
-     //       cout<<"Debug "<<__LINE__<<"\n";
             if (FD_ISSET(i, &read_fds))
             {
+		//To check if there is input from STDIN    
                 if(i == 0)
                 {
-        //            cout<<"STDIN Server Manager\n";
                     std::string strCommand;
                     getline(cin,strCommand);
                     char *commandTokens[3] = {NULL,NULL,NULL};
@@ -846,21 +841,19 @@ void Client::Manager()
                     ExecuteCommand(commandTokens,this);
                     if((strcmp(commandTokens[0],"terminate") == 0)&& peerConnections == 2)
                     {
-                //        cout<<"Debug new issue\n";
                         OpenListeningPort(hints);
                         FD_SET(listener,&read_master);
                         if (listener > fdmax)
                         {
                             fdmax = listener;
                         }
-                //        sleep(10);
                     }
                 }
+		//To check if there is a new connection    
                 else if (i == listener)
                 {
-          //          cout<<"WTF "<<listener<"\n";
                     addrlen = sizeof(remoteaddr);
-                //    sleep(5);
+               
                     newfd = accept(listener,(struct sockaddr *)&remoteaddr,&addrlen);
 
                     socklen_t len;
@@ -869,7 +862,6 @@ void Client::Manager()
                     int _port;
                     len = sizeof addr;
                     getpeername(newfd, (struct sockaddr*)&addr, &len);
-
 
                     if (addr.ss_family == AF_INET)
                     {
@@ -887,26 +879,22 @@ void Client::Manager()
                     }
                     else
                     {
-                        dout<<"Debug "<<__LINE__<<"\n";
                         FD_SET(newfd, &read_master);
                         if (newfd > fdmax)
                         {
                             fdmax = newfd;
                         }
-                        dout<<"Debug "<<__LINE__<<"\n";
+                       
                         inet_ntop(remoteaddr.ss_family,get_in_addr((struct sockaddr*)&remoteaddr),\
                         remoteIP, INET_ADDRSTRLEN);
                         char tempIP[32] = "UnKnown";
 
-                        dout<<"Debug "<<__LINE__<<"\n";
-                       // addClientToList(tempIP,-1);
                         SetClientReceivingFlag(newfd,false);
                         printf("New Client connection from %s on socket %d\n",remoteIP,newfd);
                         peerConnections++;
                         if(peerConnections >= MAX_CONNECTIONS)
                         {
                             cout<<"PeerConnection limit reached, close the listening port\n";
-                          //  cout<<"FD Clearing: "<<listener<<"\n";
                             FD_CLR(listener, &read_master);
                             close(listener);
                             listener = -1;
@@ -914,28 +902,26 @@ void Client::Manager()
                     }
 
                 }
+		//Else condition is executed for all other conditions like
+		//PUT or GET or CONNECT command data from other peers or
+		//SERVER IP list data from server    
                 else
                 {
                     memset(buf,0,BUFF_LEN);
-              //      cout<<"Something fishy "<<__LINE__<<"\n";
+             
                     if ((nbytes = recv(i,(void*)buf, sizeof(buf), 0)) <= 0)
                     {
-             //           cout<<"Trying to Debug "<<__LINE__<<"\n";
-                     //   sleep(10);
                         if(nbytes == 0)
                         {
                             peerConnections--;
-                         //   sleep(10);
                             if(peerConnections == MAX_CONNECTIONS-1)
                             {
                                 OpenListeningPort(hints);
                                 FD_SET(listener,&read_master);
-                      //          cout<<"Peer Connections now became 2, set listener port\n";
                                 if (listener > fdmax)
                                 {
                                     fdmax = listener;
                                 }
-                        //        sleep(10);
                             }
 
                             ClientList *tempList = cList;
@@ -955,9 +941,7 @@ void Client::Manager()
                                     cout<<"Client with IP : "<<tempList->IP<<" and Port Num : "<<tempList->portNumber\
                                         <<" got disconnected\n";
                                 }
-                   //             printf("Debug mofo \n");
                                 cList = cList->nextList;
-                    //            cout<<"FD Clearing: "<<i<<"\n";
                                 FD_CLR(i, &read_master);
                                 delete tempList;
                             }
@@ -966,7 +950,6 @@ void Client::Manager()
 
                                 while(tempList != NULL)
                                 {
-                 //                   printf("Debug mofo 2\n");
                                     if(tempList->fd == i)
                                     {
                                         cout<<"Client with IP : "<<tempList->IP<<" and Port Num : "<<tempList->portNumber\
@@ -978,13 +961,10 @@ void Client::Manager()
                                 }
                                 if(tempList != NULL)
                                 {
-                     //               printf("Debug mofo 3\n");
                                     prevList->nextList = tempList->nextList;
-                        //            cout<<"FD Clearing: "<<i<<"\n";
                                     FD_CLR(i, &read_master);
                                     delete tempList;
                                 }
-                       //         printf("Debug mofo 4\n");
                             }
                         }
                         else
@@ -992,19 +972,17 @@ void Client::Manager()
                             perror("recv");
                         }
                         close(i);
-                    //    cout<<"FD Clearing: "<<i<<"\n";
                         FD_CLR(i, &read_master);
                     }
                     else
                     {
-                        dout<<"Debug "<<__LINE__<<"\n";
                         if(i == serverFd)
                         {
                             ServerIPList *recvClientList = (ServerIPList*)buf;
                             PrintServerIPList(recvClientList);
                             UpdateServerList(recvClientList);
                         }
-                        else
+                        else //If some download is going on
                         {
                             if(CheckClientDetailsFlag(i) == true)
                             {
@@ -1031,8 +1009,6 @@ void Client::Manager()
                                     continue;
                                 }
 
-
-
                                 fileToWrite.write(_buff,nbytes);
 
                                 bytesRead += nbytes;
@@ -1057,11 +1033,8 @@ void Client::Manager()
                                 memcpy(cmdDetails,buf,sizeof(CommandDetails));
                                 if(cmdDetails->commandType == CONNECT)
                                 {
-                            //        cout<<"nbytes : "<<nbytes<<"\n";
-                            //        cout<<"sizes : "<<sizeof(CommandDetails)<<" "<<sizeof(ClientList)<<"\n";
                                     ClientList *recvClientList  = new ClientList;
                                     memcpy(recvClientList,buf+sizeof(CommandDetails),sizeof(ClientList));
-                           //         cout<<"IP : "<<recvClientList->IP<<" Port Num : "<<recvClientList->portNumber<<"\n";
                                     AddClientToList(recvClientList->IP,recvClientList->portNumber,i);
                                 }
                                 else if(cmdDetails->commandType == GET)
@@ -1088,12 +1061,9 @@ void Client::Manager()
                                         cout<<"Error!!! No disk space left , can't write the file,ignore\n";
                                         continue;
                                     }
-                                //    cout<<"nbytes : "<<nbytes<<"\n";
-                                 //   cout<<"sizes : "<<sizeof(CommandDetails)<<" "<<sizeof(FileNameDetails)<<"\n";
+                             
                                     long long int bytesRead = nbytes-sizeof(CommandDetails)-sizeof(FileNameDetails);
                                     long long int bytesLeft = fileSize-bytesRead;
-
-                                 //   cout<<"Size of file to be sent "<<fileSize<<"\n";
 
                                     FileNameDetails *fName = new FileNameDetails;
                                     memcpy(fName,buf+sizeof(CommandDetails),sizeof(FileNameDetails));
@@ -1102,13 +1072,11 @@ void Client::Manager()
                                     char *dotPosition = strrchr(fName->fileName,'.');
                                     if(dotPosition != NULL)
                                     {
-                                       // cout<<"L1 : "<<dotPosition-(fName->fileName)<<"\n";
                                         strncpy(_fileName,fName->fileName,dotPosition-(fName->fileName));
                                         _fileName[dotPosition-(fName->fileName)] = '\0';
-                                       // cout<<"FileName : "<<_fileName<<"\n";
+                                  
                                         strcat(_fileName,"_download");
                                         strcat(_fileName,(fName->fileName)+(dotPosition-(fName->fileName)));
-                                      //  cout<<"FileName : "<<_fileName<<"\n";
                                     }
                                     else
                                     {
@@ -1116,7 +1084,6 @@ void Client::Manager()
                                         strcat(_fileName,"_download");
                                     }
 
-                         //           cout<<"File Name open in PUT command : "<<_fileName<<"\n";
                                     ofstream fileToWrite(_fileName, ios::out | ios::binary);
                                     if(!fileToWrite.is_open())
                                     {
@@ -1131,9 +1098,6 @@ void Client::Manager()
                                     cout<<"Download Started for the file : "<<fName->fileName<<"\n";
 
                                     fileToWrite.write(_buff,bytesRead);
-
-                              //      cout<<"Bytes Read after read operation in PUT: "<<bytesRead<<"\n";
-                              //      cout<<"Bytes Left after read operation in PUT: "<<bytesLeft<<"\n";
 
                                     if(bytesLeft > 0)
                                     {
@@ -1152,7 +1116,7 @@ void Client::Manager()
                                 }
                                 else
                                 {
-                                 //   cout<<"Invalid Command Received\n";
+                                    cout<<"Invalid Command Received\n";
                                 }
 
                             }
@@ -1162,6 +1126,7 @@ void Client::Manager()
                     }
                 }
             }
+	    //To upload some file to someother peer in a non-blocking way			
             if (FD_ISSET(i, &write_master))
             {
 				if(!WriteComplete(i))
@@ -1176,8 +1141,8 @@ void Client::Manager()
 
 					if(!FileToSend.is_open())
 					{
-                        cout<<"File not found/Open Error in write, abort\n";
-                        continue;
+						cout<<"File not found/Open Error in write, abort\n";
+						continue;
 					}
 
 					char _buff[BUFF_LEN];
@@ -1234,7 +1199,7 @@ void Client::Manager()
 }
 
 
-
+//To open listening port
 void Client::OpenListeningPort(struct addrinfo hints)
 {
 
@@ -1251,14 +1216,8 @@ void Client::OpenListeningPort(struct addrinfo hints)
 
     HelperFunctions::PortNumToString(portNumber,portTest);
 
-   // cout<<"portTest : "<<portTest<<"\n";
-
-  //  cout<<"Opening Listening port \n";
-
-
     if ((rv = getaddrinfo(NULL,portTest, &hints, &ai)) != 0)
     {
-    //    cout<<"Error ???\n";
         fprintf(stderr, "selectClient: %s\n", gai_strerror(rv));
         exit(1);
     }
@@ -1268,13 +1227,11 @@ void Client::OpenListeningPort(struct addrinfo hints)
         listener = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
         if (listener < 0)
         {
-    //        cout<<"Error 1\n";
             continue;
         }
         setsockopt(listener, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int));
         if (bind(listener, p->ai_addr, p->ai_addrlen) < 0)
         {
-         //   cout<<"Error 2\n";
             close(listener);
             continue;
         }
@@ -1283,16 +1240,12 @@ void Client::OpenListeningPort(struct addrinfo hints)
 
     if (p == NULL)
     {
-      //  cout<<"Error 3\n";
         fprintf(stderr, "selectserver: failed to bind\n");
         exit(2);
     }
 
-  //  cout<<"Listening port : "<<listener<<"\n";
-
     if (listen(listener, 10) == -1)
     {
-   //     cout<<"Error 4\n";
         perror("listen");
         exit(3);
     }
@@ -1300,6 +1253,7 @@ void Client::OpenListeningPort(struct addrinfo hints)
     freeaddrinfo(ai);
 }
 
+//To find port number using IP and fd
 int Client::FindPortNumber(char *IP, int fd)
 {
     ServerIPList *tempList = sList;
@@ -1318,7 +1272,7 @@ int Client::FindPortNumber(char *IP, int fd)
     return -1;
 }
 
-
+//Add the client details when a new connection is formed with other peer
 void Client::AddClientToList(char *IP, int portNum, int fd)
 {
     ClientList *tempList = new ClientList;
@@ -1367,6 +1321,9 @@ void Client::AddClientToList(char *IP, int portNum, int fd)
 
 }
 
+//Thsi API is used to set receiving flag to true or false
+//so that we can know if any downloading is going on from 
+//that fd
 void Client::SetClientReceivingFlag(int fd,bool receivingFlag)
 {
     if(cDetailsList == NULL)
@@ -1406,6 +1363,7 @@ void Client::SetClientReceivingFlag(int fd,bool receivingFlag)
     }
 }
 
+//To check if the client is there or not in its connected list
 bool Client::CheckClientDetailsFlag(int fd)
 {
     clientDetailsList *tList = cDetailsList;
@@ -1441,11 +1399,6 @@ bool Client::CheckClientDetailsFlag(int fd)
     return false;
 }
 
-/*void Client::removeClientFromList()
-{
-
-}*/
-
 void Client::UpdateServerList(ServerIPList *recvClientList)
 {
     char *temp = (char*)recvClientList;
@@ -1474,6 +1427,7 @@ void Client::UpdateServerList(ServerIPList *recvClientList)
     }
 }
 
+//To clear all the server list
 void Client::ClearServerList()
 {
     ServerIPList *tempList;
@@ -1486,7 +1440,7 @@ void Client::ClearServerList()
     }
 }
 
-
+//To check if the IP the clients want to connect is valid or not
 bool Client::ValidClientIP(char *destIP, int portNum)
 {
 
@@ -1524,7 +1478,7 @@ bool Client::ValidClientIP(char *destIP, int portNum)
     return false;
 }
 
-
+//To get the host name
 char* Client::GetHostName(int fd)
 {
 
@@ -1541,6 +1495,7 @@ char* Client::GetHostName(int fd)
     return (char*)"";
 }
 
+//To identify whether the input is Hostname or IP
 bool Client::IdentifyIPorHostName(char *str)
 {
     char *p = strtok(str, ".");
@@ -1548,7 +1503,6 @@ bool Client::IdentifyIPorHostName(char *str)
     char *tempStr;
     if(p == NULL)
     {
-     //   cout<<"Hostname it is 1\n";
         return false;
     }
     while(p!= NULL && i < 4)
@@ -1556,16 +1510,15 @@ bool Client::IdentifyIPorHostName(char *str)
         tempStr = p;
         if(!(HelperFunctions::CheckStringToIntValidity(tempStr)))
         {
-     //       cout<<"Hostname it is 2\n";
             return false;
         }
         p = strtok(NULL,".");
         i++;
     }
- //   cout<<"Hostname it is 3\n";
     return true;
 }
 
+//To print server IP list
 void Client::PrintServerIPList(ServerIPList *recvClientList)
 {
     char *temp = (char*)recvClientList;
@@ -1575,10 +1528,8 @@ void Client::PrintServerIPList(ServerIPList *recvClientList)
     int varSize = 0;
     while(1)
     {
-      //  cout<<"Debug man\n";
         ServerIPList *tempList = new ServerIPList;
         memcpy(tempList,temp+varSize,sizeof(ServerIPList));
-      //  cout<<"Debug man\n";
         cout<<"IP : "<<tempList->IP<<"\tPort Num : "<<tempList->portNumber<<"\n";
         if(tempList->nextList == NULL)
         {
