@@ -1,6 +1,15 @@
 # Simple-File-Distributed-Sharing-System
 
-A simple application for distributed file sharing among remote hosts is developed using socket programming and then some network characteristics are observed using that application. The application behaves like a UNIX shell and takes some input commands. Only TCP Sockets are used for the implementation. select() API is used for handling multiple socket connections. Multi-threading or fork-exec is not used any where.
+A simple application for distributed file sharing among remote hosts is developed using socket programming and then some 
+network characteristics are observed using that application. 
+The process (program when it is running in memory) will take 2 command line parameters. The
+first parameter indicates whether your program instance should run as a server or a client. The second
+parameter corresponds to the port on which your process will listen for incoming connections (e.g., if
+your program is called prog1, then you can run it like this: ./prog1 s 4322, where the “s” indicates that it
+is the server and 4322 is the port. Suppose you want to run it as a client then you should run it
+as ./prog1 c 4322 where the “c” parameter indicates that the process is a client and 4322 is the listening
+port).
+The application behaves like a UNIX shell and takes some input commands. Only TCP Sockets are used for the implementation. select() API is used for handling multiple socket connections. Multi-threading or fork-exec is not used any where.
 The commands supported by the application are HELP,CREATOR,DISPLAY,REGISTER(To register with Server),CONNECT(To connect with other registered client), LIST(Display all the peer connections),TERMINATE(To terminate connection with client),QUIT(To terminate all connections and quit the process),GET( To download a file from another registered client) and PUT(To upload a file to another registered client). The detailed description of the above said commands is explained below:
 
 
