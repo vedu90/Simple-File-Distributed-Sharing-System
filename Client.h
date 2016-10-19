@@ -1,3 +1,4 @@
+/*Check .cpp file to see function comments*/
 #ifndef CLIENT_H
 #define CLIENT_H
 #include "SocketMain.h"
