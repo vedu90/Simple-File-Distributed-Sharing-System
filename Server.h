@@ -1,3 +1,4 @@
+/*Check .cpp file to see function comments*/
 #ifndef SERVER_H
 #define SERVER_H
 
