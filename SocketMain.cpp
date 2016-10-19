@@ -1,3 +1,7 @@
+/*
+This is the main file where the process execution is started.
+*/
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <netinet/in.h>
@@ -263,6 +267,7 @@ void SocketNetwork::GetHostIPAndHostName()
     }
 }
 
+//Takes the 2 input commands from the command line
 int main(int argc , char *argv[])
 {
     Server *myServer = NULL;
@@ -274,10 +279,12 @@ int main(int argc , char *argv[])
         return -1;
     }
 
+    //Checking if you want to start as server
     if(strlen(argv[1]) == 1 && strncmp(argv[1],"s",1) == 0)
     {
         myServer = Server::GetInstance();
         pObject = myServer;
+        //Checking if the port number is valid or not
         if(HelperFunctions::CheckStringToIntValidity(argv[2]) == true)
         {
             int portNum = atoi(argv[2]);
@@ -299,11 +306,13 @@ int main(int argc , char *argv[])
         }
 
     }
+    //Checking if you want to start as client
     else if(strlen(argv[1]) == 1 && strncmp(argv[1],"c",1) == 0)
     {
         dout<<"Client\n";
         myClient = Client::GetInstance();
         pObject = myClient;
+         //Checking if the port number is valid or not
         if(HelperFunctions::CheckStringToIntValidity(argv[2]) == true)
         {
             int portNum = atoi(argv[2]);
