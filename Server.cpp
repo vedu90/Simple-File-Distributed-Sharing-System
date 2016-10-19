@@ -1,3 +1,4 @@
+/*This file is used for Server and commands related to it*/
 #include<signal.h>
 #include "Server.h"
 #include<stdio.h>
@@ -13,26 +14,31 @@
 #include<sys/wait.h>
 #include "Defines.h"
 
+//Register command on server
 void Server::ExecuteRegister(char *serverIP, int portNum)
 {
     cout<<"Register command not supported for Server\n";
 }
 
+//Connect command on server
 void Server::ExecuteConnect(char *destIP, int portNum)
 {
     cout<<"Connect command not supported for Server\n";
 }
 
+//List command on server
 void Server::ExecuteList()
 {
     cout<<"List command not supported for Server\n";
 }
 
+//Terminate command on server
 void Server::ExecuteTerminate(int connectionID)
 {
     cout<<"Terminate command not supported for Server\n";
 }
 
+//Quit command on server, the server terminates connections with all its clients and quits process
 void Server::ExecuteQuit()
 {
     ServerIPList *tempList = _serverIPList;
@@ -57,17 +63,18 @@ void Server::ExecuteQuit()
 
 }
 
+//Get command on server
 void Server::ExecuteGET(int connectionID, char *fName)
 {
     cout<<"GET command not supported for Server\n";
 }
 
+//Put command on server
 void Server::ExecutePUT(int connectionID, char *fName)
 {
     cout<<"PUT command not supported for Server\n";
 }
 
-#if 1
 
 void *Server::get_in_addr(struct sockaddr *sa)
 {
@@ -77,10 +84,13 @@ void *Server::get_in_addr(struct sockaddr *sa)
     }
 }
 
-
+//This is the main API for server
+//The server processing is done here
+//Socket for the server, binding and listening is done here
+//Select API is used to maange multiple TCP connections and also 
+// to take input from STDIN simultaneously
 void Server::Manager()
 {
-    dout<<"Debug "<<__LINE__<<"\n";
     int fdmax;
     int listener;
     int newfd;
@@ -96,7 +106,7 @@ void Server::Manager()
 
     FD_ZERO(&master);
     FD_ZERO(&read_fds);
-    dout<<"Debug "<<__LINE__<<"\n";
+    
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
@@ -131,7 +141,7 @@ void Server::Manager()
         }
         break;
     }
-    dout<<"Debug "<<__LINE__<<"\n";
+    
     if (p == NULL)
     {
         fprintf(stderr, "selectserver: failed to bind\n");
@@ -139,19 +149,15 @@ void Server::Manager()
     }
     freeaddrinfo(ai);
 
-    dout<<"Debug "<<__LINE__<<"\n";
-    //Adding STDIN
-
     if (listen(listener, 10) == -1)
     {
         perror("listen");
         exit(3);
     }
-    dout<<"Debug "<<__LINE__<<"\n";
+   
     FD_SET(0, &master);
     FD_SET(listener, &master);
     fdmax = listener;
-    dout<<"Listener "<<listener<<"\n";
 
     for(;;)
     {
@@ -167,7 +173,7 @@ void Server::Manager()
             dout<<"Debug "<<__LINE__<<"\n";
             if (FD_ISSET(i, &read_fds))
             {
-                if(i == 0)
+                if(i == 0)//STD-IN
                 {
                     dout<<"STDIN Server Manager\n";
                     std::string strCommand;
@@ -179,9 +185,9 @@ void Server::Manager()
                     dout<<commandTokens[0]<<endl;
                     ExecuteCommand(commandTokens,this);
                 }
-                else if (i == listener)
+                else if (i == listener)//To accept connections from Clients
                 {
-                    dout<<"Debug "<<__LINE__<<"\n";
+                   
                     addrlen = sizeof(remoteaddr);
                     newfd = accept(listener,(struct sockaddr *)&remoteaddr,&addrlen);
 
@@ -225,9 +231,8 @@ void Server::Manager()
                 }
                 else
                 {
-                    if ((nbytes = recv(i,(void*)buf, sizeof(buf), 0)) <= 0)
-                    {
-                        dout<<"Debug "<<__LINE__<<"\n";
+                    if ((nbytes = recv(i,(void*)buf, sizeof(buf), 0)) <= 0)// A client got disconnected
+                    {                                                       //Send the updated server list data to all remaining clients
                         if(nbytes == 0)
                         {
                             printf("Client on socket %d hung up\n", i);
@@ -270,9 +275,9 @@ void Server::Manager()
 
 
                     }
-                    else
+                    else //Port number data received from client, add the data into server IP list and send to all clients
                     {
-                        dout<<"Debug "<<__LINE__<<"\n";
+                        
                         ServerIPList *recvClientList = (ServerIPList*)buf;
                         int bufLen = 0;
                         addServerIPList(recvClientList->IP,recvClientList->portNumber,i);
@@ -291,7 +296,6 @@ void Server::Manager()
                                     int n;
                                     while(total < bufLen)
                                     {
-                                  //      cout<<"Checking bytesleft : "<<bytesleft<<"\n";
                                         n = send(j, buf+total, bytesleft, 0);
                                         if (n == -1)
                                         {
@@ -310,8 +314,7 @@ void Server::Manager()
     }
 }
 
-
-#endif
+//Print the Server IP List
 void Server::PrintServerIPList()
 {
     ServerIPList *tempList = _serverIPList;
@@ -323,7 +326,7 @@ void Server::PrintServerIPList()
     }
 }
 
-
+//Add the details of newly added client
 void Server::addServerIPList(char *ip, int portNum,int fd)
 {
     int ipLen = strlen(ip);
@@ -356,6 +359,7 @@ void Server::addServerIPList(char *ip, int portNum,int fd)
     }
 }
 
+//Delete the details of disconnected client
 void Server::deleteServerIPList(int fd)
 {
     if(_serverIPList == NULL)
@@ -394,6 +398,7 @@ void Server::deleteServerIPList(int fd)
     }
 }
 
+//delete the complete server IP list
 void Server::deleteAllList()
 {
     if(_serverIPList == NULL)
@@ -411,6 +416,7 @@ void Server::deleteAllList()
     }
 }
 
+//copy updated Server IP list to buffer
 void Server::CopyUpdateListToBuffer(char *buf, int *length)
 {
     ServerIPList *tempList = _serverIPList;
@@ -419,7 +425,6 @@ void Server::CopyUpdateListToBuffer(char *buf, int *length)
     {
         memcpy((void *)(buf+varSize),tempList,sizeof(ServerIPList));
         varSize += (sizeof(ServerIPList));
-    //    cout<<"varSize : "<<varSize<<"\n";
         tempList = tempList->nextList;
     }
 
@@ -428,11 +433,8 @@ void Server::CopyUpdateListToBuffer(char *buf, int *length)
     varSize = 0;
     while(1)
     {
-      //  cout<<"Debug man\n";
         ServerIPList *tempList = new ServerIPList;
         memcpy(tempList,temp+varSize,sizeof(ServerIPList));
-      //  cout<<"Debug man\n";
-   //     cout<<"IP : "<<tempList->IP<<"Port Num : "<<tempList->portNumber<<" fd : "<<tempList->fd<<"\n";
 
         varSize += sizeof(ServerIPList);
         if(tempList->nextList == NULL)
